@@ -62,8 +62,8 @@
     <div class="status"><span class="dot"></span><span id="status">consultando NVD</span></div>
   </div>
   <div class="tabs" role="tablist" aria-label="Datos mostrados">
-    <button class="active" data-series="cve" role="tab" aria-selected="true">CVE publicados</button>
-    <button data-series="kev" role="tab" aria-selected="false">CISA KEV</button>
+    <button type="button" class="active" data-series="cve" role="tab" aria-selected="true">CVE publicados</button>
+    <button type="button" data-series="kev" role="tab" aria-selected="false">CISA KEV</button>
   </div>
   <section class="panel">
     <div class="bar">
@@ -172,13 +172,14 @@ document.querySelectorAll('[data-series]').forEach(button => {
     const count = series === 'kev' ? kevTotal : cveTotal;
     const label = series === 'kev' ? ' entradas KEV' : ' CVE registrados';
     document.getElementById('total').textContent = count.toLocaleString('es-ES') + label;
+    document.querySelector('.bar h2').textContent = series === 'kev' ? 'CISA KEV añadidos por mes' : 'CVE publicados por mes';
     document.querySelectorAll('[data-series]').forEach(b => {
       const active = b === button;
       b.classList.toggle('active', active);
       b.setAttribute('aria-selected', active);
     });
     canvas.setAttribute('aria-label', series === 'kev' ? 'CISA KEV añadidos por mes' : 'CVE publicados por mes');
-    schedule();
+    draw();
   });
 });
 </script>
