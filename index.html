@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnclock / CVE tempo</title>
+<style>
+  :root{--paper:#f7f2e8;--ink:#111;--yellow:#f4d738;--pink:#ff6b9d;--blue:#75d9ff;--green:#b9ee61;--line:#111;
+        --grid:#111;--text:#111;--chart:#ff2d6f;--fill:rgba(255,45,111,.16)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:16px Arial,Helvetica,sans-serif;
+       background-image:radial-gradient(#111 1.2px,transparent 1.2px);background-size:18px 18px}
+  main{width:100%;padding:42px 3vw 70px}
+  .eyebrow{display:inline-block;background:var(--yellow);border:4px solid var(--line);box-shadow:6px 6px 0 var(--line);
+           padding:8px 12px;letter-spacing:.14em;font-size:12px;font-weight:900;transform:rotate(-2deg)}
+  .top{display:flex;justify-content:space-between;gap:24px;align-items:end;margin:34px 0 40px}
+  h1{font:900 clamp(42px,7vw,88px)/.86 Arial,sans-serif;letter-spacing:-.08em;margin:0;max-width:760px;
+     text-transform:uppercase;text-shadow:4px 4px 0 var(--pink)}
+  .top p{font-weight:700;max-width:620px;line-height:1.5;background:#fff;padding:13px 16px;
+         border:4px solid var(--line);box-shadow:6px 6px 0 var(--line)}
+  .status{background:var(--green);border:4px solid var(--line);box-shadow:6px 6px 0 var(--line);padding:14px 17px;
+          color:var(--ink);font-weight:900;font-size:13px;white-space:nowrap}
+  .dot{display:inline-block;width:10px;height:10px;border:2px solid var(--line);border-radius:50%;
+       background:var(--pink);margin-right:8px}
+  .panel{background:#fff;border:5px solid var(--line);box-shadow:10px 10px 0 var(--line);padding:24px}
+  .bar{display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid var(--line);
+       padding-bottom:20px;margin-bottom:22px;gap:16px;flex-wrap:wrap}
+  .bar h2{font-size:22px;margin:0;text-transform:uppercase;font-weight:900}
+  .meta{font-size:12px;font-weight:900;background:var(--blue);border:3px solid var(--line);padding:7px 10px}
+  .foot{margin-top:20px;font-size:12px;font-weight:700}
+  .foot code{background:var(--yellow);padding:2px 4px}
+  canvas{width:100%;height:clamp(260px,52vh,560px);display:block}
+  .themes{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 34px}
+  .themes button{border:3px solid var(--line);background:#fff;padding:9px 12px;font:900 12px Arial;cursor:pointer}
+  .themes button.active{background:var(--yellow);box-shadow:4px 4px 0 var(--line)}
+
+  body.saas{--paper:#f5f7fb;--ink:#172033;--yellow:#dbeafe;--pink:#7c3aed;--blue:#dbeafe;--green:#d1fae5;
+    --line:#d9e1ef;--grid:#d9e1ef;--text:#5a6a86;--chart:#7c3aed;--fill:rgba(124,58,237,.12);
+    background-image:none;font-family:Inter,Arial,sans-serif}
+  body.saas h1{font-weight:700;letter-spacing:-.06em;text-transform:none;text-shadow:none}
+  body.saas .eyebrow{border:0;box-shadow:none;border-radius:8px}
+  body.saas .top p,body.saas .status,body.saas .panel{border:1px solid var(--line);box-shadow:0 14px 35px #17203312;
+    border-radius:14px}
+  body.saas .themes button{border:1px solid var(--line);border-radius:8px}
+  body.saas .themes button.active{box-shadow:none;color:#4c1d95}
+
+  body.ai{--paper:#0b1020;--ink:#e9edff;--yellow:#6d5dfc;--pink:#20e3b2;--blue:#172244;--green:#172244;
+    --line:#2c3b68;--grid:#2c3b68;--text:#8b9ae0;--chart:#20e3b2;--fill:rgba(32,227,178,.12);
+    background-image:linear-gradient(120deg,#0b1020,#111936);font-family:Inter,Arial,sans-serif}
+  body.ai h1{font-weight:800;letter-spacing:-.06em;text-transform:none;text-shadow:0 0 30px #6d5dfc88}
+  body.ai .top p,body.ai .status,body.ai .panel{background:#111936;border:1px solid var(--line);
+    box-shadow:0 0 35px #6d5dfc18;border-radius:18px}
+  body.ai .themes button{background:#111936;color:var(--ink);border-color:var(--line);border-radius:999px}
+  body.ai .themes button.active{background:var(--yellow);color:#fff;box-shadow:none}
+
+  @media(max-width:650px){
+    main{padding:26px 4vw}
+    .top{display:block;margin-bottom:30px}
+    .status{display:inline-block;margin-top:24px}
+    .panel{padding:15px;box-shadow:7px 7px 0 var(--line)}
+    .bar{display:block}
+    .meta{display:inline-block;margin-top:15px}
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">PWN / CLOCK 001</div>
+  <div class="top">
+    <div>
+      <h1>El pulso de las vulnerabilidades.</h1>
+      <p>Cuántos CVE se publicaron cada mes desde el origen del registro. El primer latido de una línea
+         temporal que después cruzaremos con exploits y con CISA KEV.</p>
+    </div>
+    <div class="status"><span class="dot"></span><span id="status">consultando NVD</span></div>
+  </div>
+  <div class="themes" aria-label="Estilo visual">
+    <button data-theme="">Neo-brutalismo</button>
+    <button data-theme="saas">SaaS moderno</button>
+    <button data-theme="ai">IA genérico</button>
+  </div>
+  <section class="panel">
+    <div class="bar">
+      <h2>CVE publicados por mes</h2>
+      <span class="meta" id="total">cargando histórico...</span>
+    </div>
+    <canvas id="chart" aria-label="CVE publicados por mes"></canvas>
+    <div class="foot">
+      Fuente: NVD · fecha usada <code>published</code> · desde 1999 · el mes en curso se excluye hasta estar completo
+    </div>
+  </section>
+</main>
+<script>
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+let rows = [], frame = null;
+
+function draw() {
+  const box = canvas.getBoundingClientRect();
+  const w = box.width, h = box.height;
+  if (!w || !h || !rows.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const style = getComputedStyle(document.body);
+  const C = name => style.getPropertyValue(name).trim();
+  const max = Math.max(...rows.map(r => r.count));
+  const padL = 58, padR = 12, padT = 18, padB = 38;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = '600 11px Arial, sans-serif';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + plotH * i / 4;
+    ctx.strokeStyle = C('--grid');
+    ctx.globalAlpha = .35;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C('--text');
+    ctx.fillText(Math.round(max * (1 - i / 4)).toLocaleString('es-ES'), 2, y);
+  }
+
+  const pts = rows.map((r, i) => [
+    padL + i * plotW / (rows.length - 1),
+    padT + plotH - (r.count / max) * plotH
+  ]);
+
+  ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  ctx.lineTo(pts[pts.length - 1][0], padT + plotH);
+  ctx.lineTo(padL, padT + plotH);
+  ctx.closePath();
+  ctx.fillStyle = C('--fill');
+  ctx.fill();
+
+  ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+  ctx.strokeStyle = C('--chart');
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  ctx.fillStyle = C('--text');
+  ctx.textAlign = 'center';
+  rows.forEach((r, i) => {
+    if (r.month.endsWith('-01')) ctx.fillText(r.month.slice(0, 4), pts[i][0], h - padB / 2);
+  });
+  ctx.textAlign = 'left';
+}
+
+function schedule() {
+  if (frame) cancelAnimationFrame(frame);
+  frame = requestAnimationFrame(draw);
+}
+
+fetch('/api/monthly')
+  .then(r => r.json())
+  .then(({ data, error }) => {
+    if (error) throw new Error(error);
+    rows = data;
+    const total = data.reduce((a, r) => a + r.count, 0);
+    document.getElementById('total').textContent = total.toLocaleString('es-ES') + ' CVE registrados';
+    document.getElementById('status').textContent = 'NVD conectado';
+    draw();
+  })
+  .catch(e => {
+    document.getElementById('status').textContent = 'NVD no disponible';
+    document.getElementById('total').textContent = 'No se pudo cargar el histórico';
+    console.error(e);
+  });
+
+window.addEventListener('resize', schedule);
+new ResizeObserver(schedule).observe(canvas.parentElement);
+
+document.querySelectorAll('[data-theme]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.body.className = button.dataset.theme;
+    localStorage.setItem('pwnclock-theme', button.dataset.theme);
+    document.querySelectorAll('[data-theme]').forEach(b => b.classList.toggle('active', b === button));
+    schedule();
+  });
+});
+const saved = localStorage.getItem('pwnclock-theme') || '';
+document.body.className = saved;
+document.querySelector(`[data-theme="${saved}"]`).classList.add('active');
+</script>
+</body>
+</html>
