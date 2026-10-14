@@ -10,6 +10,8 @@ National Vulnerability Database (NVD).
 - `GET /api/monthly` devuelve el histórico mensual en formato JSON.
 - La API incluye una segunda serie con las vulnerabilidades añadidas cada mes
   al catálogo CISA KEV (`dateAdded`).
+- La API incluye una tercera serie con exploits públicos de Exploit-DB,
+  agrupados por su fecha de publicación (`date_published`).
 - Si no existe `monthly-cache.json`, el servidor descarga los feeds anuales
   comprimidos del NVD, cuenta los CVE por mes y guarda el resultado en caché.
 - `index.html` presenta los datos en un gráfico adaptable usando `<canvas>`.
@@ -36,6 +38,7 @@ por cada año disponible. Las siguientes peticiones usan `monthly-cache.json`.
 - `index.html`: interfaz y gráfico del histórico.
 - `monthly-cache.json`: datos mensuales generados desde NVD.
 - `kev-monthly-cache.json`: datos mensuales generados desde CISA KEV.
+- `exploitdb-monthly-cache.json`: datos mensuales generados desde Exploit-DB.
 
 ## Fuente de datos
 

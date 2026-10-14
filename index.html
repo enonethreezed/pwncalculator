@@ -64,6 +64,7 @@
   <div class="tabs" role="tablist" aria-label="Datos mostrados">
     <button type="button" class="active" data-series="cve" role="tab" aria-selected="true">CVE publicados</button>
     <button type="button" data-series="kev" role="tab" aria-selected="false">CISA KEV</button>
+    <button type="button" data-series="exploits" role="tab" aria-selected="false">Exploits públicos</button>
   </div>
   <section class="panel">
     <div class="bar">
@@ -79,12 +80,13 @@
 <script>
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
-let rows = [], kevRows = [], series = 'cve', frame = null, hoverIndex = -1, cveTotal = 0, kevTotal = 0;
+let rows = [], kevRows = [], exploitRows = [], series = 'cve', frame = null, hoverIndex = -1;
+let cveTotal = 0, kevTotal = 0, exploitTotal = 0;
 
 function draw() {
   const box = canvas.getBoundingClientRect();
   const w = box.width, h = box.height;
-  const activeRows = series === 'kev' ? kevRows : rows;
+  const activeRows = series === 'kev' ? kevRows : series === 'exploits' ? exploitRows : rows;
   if (!w || !h || !activeRows.length) return;
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(w * dpr);
@@ -142,7 +144,7 @@ function draw() {
   if (hoverIndex >= 0 && hoverIndex < activeRows.length) {
     const point = pts[hoverIndex];
     const row = activeRows[hoverIndex];
-    const title = series === 'kev' ? 'CISA KEV' : 'CVE publicados';
+    const title = series === 'kev' ? 'CISA KEV' : series === 'exploits' ? 'Exploits públicos' : 'CVE publicados';
     const text = `${row.month}  ·  ${row.count.toLocaleString('es-ES')}`;
     ctx.font = '700 12px Arial, sans-serif';
     const width = Math.max(ctx.measureText(title).width, ctx.measureText(text).width) + 22;
@@ -174,12 +176,14 @@ function schedule() {
 
 fetch('/api/monthly')
   .then(r => r.json())
-  .then(({ data, kev, error }) => {
+  .then(({ data, kev, exploits, error }) => {
     if (error) throw new Error(error);
     rows = data;
     kevRows = kev || [];
+    exploitRows = exploits || [];
     cveTotal = data.reduce((a, r) => a + r.count, 0);
     kevTotal = kevRows.reduce((a, r) => a + r.count, 0);
+    exploitTotal = exploitRows.reduce((a, r) => a + r.count, 0);
     document.getElementById('total').textContent = cveTotal.toLocaleString('es-ES') + ' CVE registrados';
     document.getElementById('status').textContent = 'NVD + CISA conectados';
     draw();
@@ -194,7 +198,7 @@ window.addEventListener('resize', schedule);
 new ResizeObserver(schedule).observe(canvas.parentElement);
 
 canvas.addEventListener('mousemove', event => {
-  const activeRows = series === 'kev' ? kevRows : rows;
+  const activeRows = series === 'kev' ? kevRows : series === 'exploits' ? exploitRows : rows;
   if (!activeRows.length) return;
   const rect = canvas.getBoundingClientRect();
   const padL = 58, padR = 58;
@@ -213,16 +217,16 @@ canvas.addEventListener('mouseleave', () => {
 document.querySelectorAll('[data-series]').forEach(button => {
   button.addEventListener('click', () => {
     series = button.dataset.series;
-    const count = series === 'kev' ? kevTotal : cveTotal;
-    const label = series === 'kev' ? ' entradas KEV' : ' CVE registrados';
+    const count = series === 'kev' ? kevTotal : series === 'exploits' ? exploitTotal : cveTotal;
+    const label = series === 'kev' ? ' entradas KEV' : series === 'exploits' ? ' exploits públicos' : ' CVE registrados';
     document.getElementById('total').textContent = count.toLocaleString('es-ES') + label;
-    document.querySelector('.bar h2').textContent = series === 'kev' ? 'CISA KEV añadidos por mes' : 'CVE publicados por mes';
+    document.querySelector('.bar h2').textContent = series === 'kev' ? 'CISA KEV añadidos por mes' : series === 'exploits' ? 'Exploits públicos por mes' : 'CVE publicados por mes';
     document.querySelectorAll('[data-series]').forEach(b => {
       const active = b === button;
       b.classList.toggle('active', active);
       b.setAttribute('aria-selected', active);
     });
-    canvas.setAttribute('aria-label', series === 'kev' ? 'CISA KEV añadidos por mes' : 'CVE publicados por mes');
+    canvas.setAttribute('aria-label', series === 'kev' ? 'CISA KEV añadidos por mes' : series === 'exploits' ? 'Exploits públicos por mes' : 'CVE publicados por mes');
     hoverIndex = -1;
     draw();
   });
