@@ -8,6 +8,8 @@ National Vulnerability Database (NVD).
 
 - `server.py` inicia un servidor HTTP en el puerto `9494`.
 - `GET /api/monthly` devuelve el histórico mensual en formato JSON.
+- La API incluye una segunda serie con las vulnerabilidades añadidas cada mes
+  al catálogo CISA KEV (`dateAdded`).
 - Si no existe `monthly-cache.json`, el servidor descarga los feeds anuales
   comprimidos del NVD, cuenta los CVE por mes y guarda el resultado en caché.
 - `index.html` presenta los datos en un gráfico adaptable usando `<canvas>`.
@@ -33,6 +35,7 @@ por cada año disponible. Las siguientes peticiones usan `monthly-cache.json`.
 - `server.py`: servidor HTTP, API y generación de la caché.
 - `index.html`: interfaz y gráfico del histórico.
 - `monthly-cache.json`: datos mensuales generados desde NVD.
+- `kev-monthly-cache.json`: datos mensuales generados desde CISA KEV.
 
 ## Fuente de datos
 

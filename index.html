@@ -26,6 +26,9 @@
        padding-bottom:20px;margin-bottom:22px;gap:16px;flex-wrap:wrap}
   .bar h2{font-size:22px;margin:0;text-transform:uppercase;font-weight:900}
   .meta{font-size:12px;font-weight:900;background:var(--blue);border:3px solid var(--line);padding:7px 10px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;font-weight:900}
+  .legend span:before{content:"";display:inline-block;width:24px;border-top:3px solid var(--chart);margin:0 6px 3px 0}
+  .legend .kev:before{border-color:var(--yellow);border-top-style:dashed}
   .foot{margin-top:20px;font-size:12px;font-weight:700}
   .foot code{background:var(--yellow);padding:2px 4px}
   canvas{width:100%;height:clamp(260px,52vh,560px);display:block}
@@ -83,7 +86,8 @@
       <h2>CVE publicados por mes</h2>
       <span class="meta" id="total">cargando histórico...</span>
     </div>
-    <canvas id="chart" aria-label="CVE publicados por mes"></canvas>
+    <div class="legend"><span>CVE publicados</span><span class="kev">CISA KEV añadidos</span></div>
+    <canvas id="chart" aria-label="CVE publicados por mes y entradas CISA KEV"></canvas>
     <div class="foot">
       Fuente: NVD · fecha usada <code>published</code> · desde 1999 · el mes en curso se excluye hasta estar completo
     </div>
@@ -92,7 +96,7 @@
 <script>
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
-let rows = [], frame = null;
+let rows = [], kevRows = [], frame = null;
 
 function draw() {
   const box = canvas.getBoundingClientRect();
@@ -144,6 +148,19 @@ function draw() {
   ctx.lineJoin = 'round';
   ctx.stroke();
 
+  const kev = new Map(kevRows.map(r => [r.month, r.count]));
+  ctx.beginPath();
+  rows.forEach((r, i) => {
+    const value = kev.get(r.month) || 0;
+    const point = [pts[i][0], padT + plotH - (value / max) * plotH];
+    i ? ctx.lineTo(point[0], point[1]) : ctx.moveTo(point[0], point[1]);
+  });
+  ctx.strokeStyle = C('--yellow');
+  ctx.setLineDash([8, 5]);
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.setLineDash([]);
+
   ctx.fillStyle = C('--text');
   ctx.textAlign = 'center';
   rows.forEach((r, i) => {
@@ -159,9 +176,10 @@ function schedule() {
 
 fetch('/api/monthly')
   .then(r => r.json())
-  .then(({ data, error }) => {
+  .then(({ data, kev, error }) => {
     if (error) throw new Error(error);
     rows = data;
+    kevRows = kev || [];
     const total = data.reduce((a, r) => a + r.count, 0);
     document.getElementById('total').textContent = total.toLocaleString('es-ES') + ' CVE registrados';
     document.getElementById('status').textContent = 'NVD conectado';

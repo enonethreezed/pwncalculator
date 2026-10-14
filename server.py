@@ -11,6 +11,8 @@ from threading import Thread
 ROOT = Path(__file__).parent
 NVD = "https://services.nvd.nist.gov/rest/json/cves/2.0?"
 CACHE = ROOT / "monthly-cache.json"
+KEV_CACHE = ROOT / "kev-monthly-cache.json"
+KEV = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 
 
 def monthly_counts():
@@ -38,11 +40,29 @@ def monthly_counts():
     return data
 
 
+def kev_monthly_counts():
+    if KEV_CACHE.is_file():
+        return json.loads(KEV_CACHE.read_text())
+    request = urllib.request.Request(KEV, headers={"User-Agent": "pwnclock/0.1"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        payload = json.loads(response.read())
+    now = datetime.now(timezone.utc)
+    counts = {}
+    for item in payload.get("vulnerabilities", []):
+        month = item.get("dateAdded", "")[:7]
+        if month and month < now.strftime("%Y-%m"):
+            counts[month] = counts.get(month, 0) + 1
+    data = [{"month": month, "count": count} for month, count in sorted(counts.items())]
+    KEV_CACHE.write_text(json.dumps(data))
+    return data
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/monthly":
             try:
-                body = json.dumps({"source": "NVD", "data": monthly_counts()}).encode()
+                body = json.dumps({"source": "NVD + CISA KEV", "data": monthly_counts(),
+                                   "kev": kev_monthly_counts()}).encode()
                 self.send_response(200)
             except Exception as error:
                 body = json.dumps({"error": str(error)}).encode()
@@ -72,6 +92,7 @@ if __name__ == "__main__":
     def warm_cache():
         try:
             monthly_counts()
+            kev_monthly_counts()
             print("historical cache ready")
         except Exception as error:
             print("cache build failed:", error)
