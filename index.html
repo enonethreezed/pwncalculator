@@ -79,7 +79,7 @@
 <script>
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
-let rows = [], kevRows = [], series = 'cve', frame = null, cveTotal = 0, kevTotal = 0;
+let rows = [], kevRows = [], series = 'cve', frame = null, hoverIndex = -1, cveTotal = 0, kevTotal = 0;
 
 function draw() {
   const box = canvas.getBoundingClientRect();
@@ -138,6 +138,33 @@ function draw() {
     if (r.month.endsWith('-01')) ctx.fillText(r.month.slice(0, 4), pts[i][0], h - padB / 2);
   });
   ctx.textAlign = 'left';
+
+  if (hoverIndex >= 0 && hoverIndex < activeRows.length) {
+    const point = pts[hoverIndex];
+    const row = activeRows[hoverIndex];
+    const title = series === 'kev' ? 'CISA KEV' : 'CVE publicados';
+    const text = `${row.month}  ·  ${row.count.toLocaleString('es-ES')}`;
+    ctx.font = '700 12px Arial, sans-serif';
+    const width = Math.max(ctx.measureText(title).width, ctx.measureText(text).width) + 22;
+    const height = 48;
+    const left = Math.min(Math.max(8, point[0] - width / 2), w - width - 8);
+    const top = Math.max(8, point[1] - height - 12);
+    ctx.fillStyle = '#111936';
+    ctx.strokeStyle = C('--yellow');
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(left, top, width, height, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = C('--text');
+    ctx.fillText(title, left + 11, top + 16);
+    ctx.fillStyle = C('--ink');
+    ctx.fillText(text, left + 11, top + 35);
+    ctx.fillStyle = C('--yellow');
+    ctx.beginPath();
+    ctx.arc(point[0], point[1], 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function schedule() {
@@ -166,6 +193,23 @@ fetch('/api/monthly')
 window.addEventListener('resize', schedule);
 new ResizeObserver(schedule).observe(canvas.parentElement);
 
+canvas.addEventListener('mousemove', event => {
+  const activeRows = series === 'kev' ? kevRows : rows;
+  if (!activeRows.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const padL = 58, padR = 58;
+  const x = event.clientX - rect.left;
+  const plotW = rect.width - padL - padR;
+  const index = Math.round((x - padL) * (activeRows.length - 1) / Math.max(1, plotW));
+  hoverIndex = index >= 0 && index < activeRows.length ? index : -1;
+  draw();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverIndex = -1;
+  draw();
+});
+
 document.querySelectorAll('[data-series]').forEach(button => {
   button.addEventListener('click', () => {
     series = button.dataset.series;
@@ -179,6 +223,7 @@ document.querySelectorAll('[data-series]').forEach(button => {
       b.setAttribute('aria-selected', active);
     });
     canvas.setAttribute('aria-label', series === 'kev' ? 'CISA KEV añadidos por mes' : 'CVE publicados por mes');
+    hoverIndex = -1;
     draw();
   });
 });
