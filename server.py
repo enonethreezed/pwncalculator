@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import json
 import gzip
-import csv
-import io
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -14,9 +12,9 @@ ROOT = Path(__file__).parent
 NVD = "https://services.nvd.nist.gov/rest/json/cves/2.0?"
 CACHE = ROOT / "monthly-cache.json"
 KEV_CACHE = ROOT / "kev-monthly-cache.json"
-EXPLOIT_CACHE = ROOT / "exploitdb-monthly-cache.json"
+EXPLOIT_CACHE = ROOT / "github-poc-monthly-cache.json"
 KEV = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-EXPLOITDB = "https://gitlab.com/exploit-database/exploitdb/-/raw/main/files_exploits.csv"
+GITHUB_POC = "https://api.github.com/repos/nomi-sec/PoC-in-GitHub/git/trees/master?recursive=1"
 
 
 def monthly_counts():
@@ -64,13 +62,14 @@ def kev_monthly_counts():
 def exploit_monthly_counts():
     if EXPLOIT_CACHE.is_file():
         return json.loads(EXPLOIT_CACHE.read_text())
-    request = urllib.request.Request(EXPLOITDB, headers={"User-Agent": "pwnclock/0.1"})
+    request = urllib.request.Request(GITHUB_POC, headers={"User-Agent": "pwnclock/0.1"})
     with urllib.request.urlopen(request, timeout=60) as response:
-        content = response.read().decode("utf-8", errors="replace")
+        payload = json.loads(response.read())
     current_month = datetime.now(timezone.utc).strftime("%Y-%m")
     counts = {}
-    for item in csv.DictReader(io.StringIO(content)):
-        month = item.get("date_published", "")[:7]
+    for item in payload.get("tree", []):
+        parts = item.get("path", "").split("/")
+        month = f"{parts[0]}-01" if len(parts) == 2 and parts[0].isdigit() and len(parts[0]) == 4 else ""
         if month and month < current_month:
             counts[month] = counts.get(month, 0) + 1
     data = [{"month": month, "count": count} for month, count in sorted(counts.items())]
