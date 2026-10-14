@@ -110,7 +110,7 @@ function draw() {
   const style = getComputedStyle(document.body);
   const C = name => style.getPropertyValue(name).trim();
   const max = Math.max(...rows.map(r => r.count));
-  const padL = 58, padR = 12, padT = 18, padB = 38;
+  const padL = 58, padR = 58, padT = 18, padB = 38;
   const plotW = w - padL - padR, plotH = h - padT - padB;
 
   ctx.clearRect(0, 0, w, h);
@@ -127,6 +127,15 @@ function draw() {
     ctx.fillStyle = C('--text');
     ctx.fillText(Math.round(max * (1 - i / 4)).toLocaleString('es-ES'), 2, y);
   }
+
+  const kevMax = Math.max(1, ...kevRows.map(r => r.count));
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + plotH * i / 4;
+    ctx.fillStyle = C('--yellow');
+    ctx.fillText(Math.round(kevMax * (1 - i / 4)).toLocaleString('es-ES'), w - 2, y);
+  }
+  ctx.textAlign = 'left';
 
   const pts = rows.map((r, i) => [
     padL + i * plotW / (rows.length - 1),
@@ -152,7 +161,7 @@ function draw() {
   ctx.beginPath();
   rows.forEach((r, i) => {
     const value = kev.get(r.month) || 0;
-    const point = [pts[i][0], padT + plotH - (value / max) * plotH];
+    const point = [pts[i][0], padT + plotH - (value / kevMax) * plotH];
     i ? ctx.lineTo(point[0], point[1]) : ctx.moveTo(point[0], point[1]);
   });
   ctx.strokeStyle = C('--yellow');
@@ -160,6 +169,16 @@ function draw() {
   ctx.lineWidth = 3;
   ctx.stroke();
   ctx.setLineDash([]);
+
+  kevRows.forEach(r => {
+    const i = rows.findIndex(row => row.month === r.month);
+    if (i < 0) return;
+    const y = padT + plotH - (r.count / kevMax) * plotH;
+    ctx.fillStyle = C('--yellow');
+    ctx.beginPath();
+    ctx.arc(pts[i][0], y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
 
   ctx.fillStyle = C('--text');
   ctx.textAlign = 'center';
