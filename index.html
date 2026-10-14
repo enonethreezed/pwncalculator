@@ -26,25 +26,12 @@
        padding-bottom:20px;margin-bottom:22px;gap:16px;flex-wrap:wrap}
   .bar h2{font-size:22px;margin:0;text-transform:uppercase;font-weight:900}
   .meta{font-size:12px;font-weight:900;background:var(--blue);border:3px solid var(--line);padding:7px 10px}
-  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;font-weight:900}
-  .legend span:before{content:"";display:inline-block;width:24px;border-top:3px solid var(--chart);margin:0 6px 3px 0}
-  .legend .kev:before{border-color:var(--yellow);border-top-style:dashed}
   .foot{margin-top:20px;font-size:12px;font-weight:700}
   .foot code{background:var(--yellow);padding:2px 4px}
   canvas{width:100%;height:clamp(260px,52vh,560px);display:block}
-  .themes{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 34px}
-  .themes button{border:3px solid var(--line);background:#fff;padding:9px 12px;font:900 12px Arial;cursor:pointer}
-  .themes button.active{background:var(--yellow);box-shadow:4px 4px 0 var(--line)}
-
-  body.saas{--paper:#f5f7fb;--ink:#172033;--yellow:#dbeafe;--pink:#7c3aed;--blue:#dbeafe;--green:#d1fae5;
-    --line:#d9e1ef;--grid:#d9e1ef;--text:#5a6a86;--chart:#7c3aed;--fill:rgba(124,58,237,.12);
-    background-image:none;font-family:Inter,Arial,sans-serif}
-  body.saas h1{font-weight:700;letter-spacing:-.06em;text-transform:none;text-shadow:none}
-  body.saas .eyebrow{border:0;box-shadow:none;border-radius:8px}
-  body.saas .top p,body.saas .status,body.saas .panel{border:1px solid var(--line);box-shadow:0 14px 35px #17203312;
-    border-radius:14px}
-  body.saas .themes button{border:1px solid var(--line);border-radius:8px}
-  body.saas .themes button.active{box-shadow:none;color:#4c1d95}
+  .tabs{display:flex;gap:8px;margin:0 0 34px}
+  .tabs button{border:1px solid var(--line);background:#111936;color:var(--ink);padding:10px 14px;font:900 12px Arial;cursor:pointer;border-radius:999px}
+  .tabs button.active{background:var(--yellow);color:#fff}
 
   body.ai{--paper:#0b1020;--ink:#e9edff;--yellow:#6d5dfc;--pink:#20e3b2;--blue:#172244;--green:#172244;
     --line:#2c3b68;--grid:#2c3b68;--text:#8b9ae0;--chart:#20e3b2;--fill:rgba(32,227,178,.12);
@@ -52,8 +39,6 @@
   body.ai h1{font-weight:800;letter-spacing:-.06em;text-transform:none;text-shadow:0 0 30px #6d5dfc88}
   body.ai .top p,body.ai .status,body.ai .panel{background:#111936;border:1px solid var(--line);
     box-shadow:0 0 35px #6d5dfc18;border-radius:18px}
-  body.ai .themes button{background:#111936;color:var(--ink);border-color:var(--line);border-radius:999px}
-  body.ai .themes button.active{background:var(--yellow);color:#fff;box-shadow:none}
 
   @media(max-width:650px){
     main{padding:26px 4vw}
@@ -76,18 +61,16 @@
     </div>
     <div class="status"><span class="dot"></span><span id="status">consultando NVD</span></div>
   </div>
-  <div class="themes" aria-label="Estilo visual">
-    <button data-theme="">Neo-brutalismo</button>
-    <button data-theme="saas">SaaS moderno</button>
-    <button data-theme="ai">IA genérico</button>
+  <div class="tabs" role="tablist" aria-label="Datos mostrados">
+    <button class="active" data-series="cve" role="tab" aria-selected="true">CVE publicados</button>
+    <button data-series="kev" role="tab" aria-selected="false">CISA KEV</button>
   </div>
   <section class="panel">
     <div class="bar">
       <h2>CVE publicados por mes</h2>
       <span class="meta" id="total">cargando histórico...</span>
     </div>
-    <div class="legend"><span>CVE publicados</span><span class="kev">CISA KEV añadidos</span></div>
-    <canvas id="chart" aria-label="CVE publicados por mes y entradas CISA KEV"></canvas>
+    <canvas id="chart" aria-label="CVE publicados por mes"></canvas>
     <div class="foot">
       Fuente: NVD · fecha usada <code>published</code> · desde 1999 · el mes en curso se excluye hasta estar completo
     </div>
@@ -96,12 +79,13 @@
 <script>
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
-let rows = [], kevRows = [], frame = null;
+let rows = [], kevRows = [], series = 'cve', frame = null, cveTotal = 0, kevTotal = 0;
 
 function draw() {
   const box = canvas.getBoundingClientRect();
   const w = box.width, h = box.height;
-  if (!w || !h || !rows.length) return;
+  const activeRows = series === 'kev' ? kevRows : rows;
+  if (!w || !h || !activeRows.length) return;
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(w * dpr);
   canvas.height = Math.round(h * dpr);
@@ -109,7 +93,7 @@ function draw() {
 
   const style = getComputedStyle(document.body);
   const C = name => style.getPropertyValue(name).trim();
-  const max = Math.max(...rows.map(r => r.count));
+  const max = Math.max(1, ...activeRows.map(r => r.count));
   const padL = 58, padR = 58, padT = 18, padB = 38;
   const plotW = w - padL - padR, plotH = h - padT - padB;
 
@@ -128,17 +112,8 @@ function draw() {
     ctx.fillText(Math.round(max * (1 - i / 4)).toLocaleString('es-ES'), 2, y);
   }
 
-  const kevMax = Math.max(1, ...kevRows.map(r => r.count));
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
-    const y = padT + plotH * i / 4;
-    ctx.fillStyle = C('--yellow');
-    ctx.fillText(Math.round(kevMax * (1 - i / 4)).toLocaleString('es-ES'), w - 2, y);
-  }
-  ctx.textAlign = 'left';
-
-  const pts = rows.map((r, i) => [
-    padL + i * plotW / (rows.length - 1),
+  const pts = activeRows.map((r, i) => [
+    padL + i * plotW / Math.max(1, activeRows.length - 1),
     padT + plotH - (r.count / max) * plotH
   ]);
 
@@ -157,32 +132,9 @@ function draw() {
   ctx.lineJoin = 'round';
   ctx.stroke();
 
-  const kev = new Map(kevRows.map(r => [r.month, r.count]));
-  ctx.beginPath();
-  rows.forEach((r, i) => {
-    const value = kev.get(r.month) || 0;
-    const point = [pts[i][0], padT + plotH - (value / kevMax) * plotH];
-    i ? ctx.lineTo(point[0], point[1]) : ctx.moveTo(point[0], point[1]);
-  });
-  ctx.strokeStyle = C('--yellow');
-  ctx.setLineDash([8, 5]);
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  kevRows.forEach(r => {
-    const i = rows.findIndex(row => row.month === r.month);
-    if (i < 0) return;
-    const y = padT + plotH - (r.count / kevMax) * plotH;
-    ctx.fillStyle = C('--yellow');
-    ctx.beginPath();
-    ctx.arc(pts[i][0], y, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
   ctx.fillStyle = C('--text');
   ctx.textAlign = 'center';
-  rows.forEach((r, i) => {
+  activeRows.forEach((r, i) => {
     if (r.month.endsWith('-01')) ctx.fillText(r.month.slice(0, 4), pts[i][0], h - padB / 2);
   });
   ctx.textAlign = 'left';
@@ -199,9 +151,10 @@ fetch('/api/monthly')
     if (error) throw new Error(error);
     rows = data;
     kevRows = kev || [];
-    const total = data.reduce((a, r) => a + r.count, 0);
-    document.getElementById('total').textContent = total.toLocaleString('es-ES') + ' CVE registrados';
-    document.getElementById('status').textContent = 'NVD conectado';
+    cveTotal = data.reduce((a, r) => a + r.count, 0);
+    kevTotal = kevRows.reduce((a, r) => a + r.count, 0);
+    document.getElementById('total').textContent = cveTotal.toLocaleString('es-ES') + ' CVE registrados';
+    document.getElementById('status').textContent = 'NVD + CISA conectados';
     draw();
   })
   .catch(e => {
@@ -213,17 +166,21 @@ fetch('/api/monthly')
 window.addEventListener('resize', schedule);
 new ResizeObserver(schedule).observe(canvas.parentElement);
 
-document.querySelectorAll('[data-theme]').forEach(button => {
+document.querySelectorAll('[data-series]').forEach(button => {
   button.addEventListener('click', () => {
-    document.body.className = button.dataset.theme;
-    localStorage.setItem('pwnclock-theme', button.dataset.theme);
-    document.querySelectorAll('[data-theme]').forEach(b => b.classList.toggle('active', b === button));
+    series = button.dataset.series;
+    const count = series === 'kev' ? kevTotal : cveTotal;
+    const label = series === 'kev' ? ' entradas KEV' : ' CVE registrados';
+    document.getElementById('total').textContent = count.toLocaleString('es-ES') + label;
+    document.querySelectorAll('[data-series]').forEach(b => {
+      const active = b === button;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', active);
+    });
+    canvas.setAttribute('aria-label', series === 'kev' ? 'CISA KEV añadidos por mes' : 'CVE publicados por mes');
     schedule();
   });
 });
-const saved = localStorage.getItem('pwnclock-theme') || '';
-document.body.className = saved;
-document.querySelector(`[data-theme="${saved}"]`).classList.add('active');
 </script>
 </body>
 </html>

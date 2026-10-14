@@ -13,8 +13,8 @@ National Vulnerability Database (NVD).
 - Si no existe `monthly-cache.json`, el servidor descarga los feeds anuales
   comprimidos del NVD, cuenta los CVE por mes y guarda el resultado en caché.
 - `index.html` presenta los datos en un gráfico adaptable usando `<canvas>`.
-- La interfaz permite alternar entre tres estilos visuales: neo-brutalismo,
-  SaaS moderno e IA genérico. La selección se guarda en `localStorage`.
+- La interfaz usa un único estilo visual de IA genérico y permite alternar
+  entre dos pestañas independientes: CVE publicados y CISA KEV.
 - El mes actual se excluye porque sus datos todavía están incompletos.
 
 ## Ejecución
